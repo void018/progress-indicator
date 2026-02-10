@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Flavors&family=Tajawal:wght@700&display=swap" rel="stylesheet">
+    <title>Donation Tracker</title>
+<style>
+    /* --- CSS STYLES --- */
+    :root {
+        --primary-color: #00b8db; /* UPDATED: Cyan/Blue */
+        --milestone-color: #FFC107; /* Gold for stars */
+        --text-color: #ffffff;
+        --card-bg: rgba(0, 0, 0, 0.85); 
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #ffffff; 
+    }
+
+    /* Background Image Handling */
+    .background-poster {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url('./poster.webp');
+        filter: blur(5px); 
+        background-size: contain; 
+        background-repeat: no-repeat;
+        background-position: center center;
+        z-index: -1;
+    }
+
+    /* The Card Container */
+    .tracker-card {
+        background-color: var(--card-bg);
+        width: 85%;
+        max-width: 400px;
+        padding: 30px 20px;
+        border-radius: 10px;
+        text-align: center;
+        color: var(--text-color);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.1);
+
+        font-family: "Tajawal", 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 700;
+        font-style: normal;
+    }
+
+    h1 {
+        margin-top: 0;
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Progress Bar Styles */
+    .progress-wrapper {
+        position: relative;
+        width: 100%;
+        height: 25px;
+        background-color: rgba(255,255,255,0.2);
+        border-radius: 12px;
+        /* INCREASED MARGIN to make room for text above stars */
+        margin: 50px 0 35px 0; 
+    }
+
+    .progress-fill {
+        height: 100%;
+        /* UPDATED GRADIENT to match new Blue */
+        background: linear-gradient(90deg, #00b8db, #00defa);
+        width: 0%; 
+        border-radius: 12px;
+        transition: width 1.5s ease-out;
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    /* Milestone Markers */
+    .milestone-marker {
+        position: absolute;
+        top: -8px; 
+        width: 2px;
+        height: 41px; 
+        background-color: rgba(255,255,255,0.8);
+        z-index: 2;
+        transform: translateX(-50%);
+    }
+
+    /* The Star */
+    /*
+    .milestone-marker::before {
+        content: '★'; 
+        position: absolute;
+        top: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--milestone-color);
+        font-size: 18px;
+        text-shadow: 0 2px 2px rgba(0,0,0,0.8);
+    }
+    */
+
+    /* The Percentage Text */
+    .milestone-marker::before {
+        content: attr(data-label); /* Reads value from HTML */
+        position: absolute;
+        top: -22px; /* Positioned above the star */
+        left: 50%;
+        transform: translateX(-50%);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 400;
+        opacity: 0.9;
+    }
+
+    /* Text Stats */
+    .stats-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 1rem;
+        margin-bottom: 5px;
+    }
+
+    .amount-current {
+        color: var(--primary-color);
+        font-size: 1.6rem;
+        font-weight: bold;
+    }
+
+    .loading {
+        font-size: 0.9rem;
+        color: #aaa;
+        margin-bottom: 20px;
+    }
+</style>
+</head>
+<body>
+
+    <!-- Background Layer -->
+    <div class="background-poster"></div>
+
+    <!-- Main Content -->
+    <div class="tracker-card">
+        <h1>تبرعات كهرباء 018</h1>
+        
+        <div id="loading-msg" class="loading">Fetching live data...</div>
+
+        <div class="stats-row">
+            <span>:المبلغ الحالي</span>
+            <span>:الهدف</span>
+        </div>
+
+        <div class="stats-row">
+            <span id="current-display" class="amount-current">$0</span>
+            <span id="target-display">$0</span>
+        </div>
+
+        <div class="progress-wrapper" id="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+            <!-- Milestones will be injected here by JS -->
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // PASTE YOUR GOOGLE SCRIPT URL INSIDE THE QUOTES BELOW
+        const DATA_URL = "MyURL";
+
+        async function initTracker() {
+            try {
+                const response = await fetch(DATA_URL);
+                const data = await response.json();
+
+                // 1. Update Text
+                document.getElementById('current-display').innerText = formatCurrency(data.current);
+                document.getElementById('target-display').innerText = formatCurrency(data.target);
+                document.getElementById('loading-msg').style.display = 'none';
+
+                // 2. Calculate Percentage
+                let percentage = (data.current / data.target) * 100;
+                if (percentage > 100) percentage = 100; // Cap at 100%
+                
+                // 3. Update Bar Width
+                document.getElementById('progress-bar').style.width = percentage + "%";
+
+                // 4. Create Milestones
+                const track = document.getElementById('progress-track');
+                
+                data.milestones.forEach(percentVal => {
+                    // Safety check to ensure it fits on bar
+                    if(percentVal >= 0 && percentVal <= 100) {
+                        const marker = document.createElement('div');
+                        marker.classList.add('milestone-marker');
+                        marker.style.left = percentVal + "%";
+                        
+                        // NEW: Add the percentage text as a data attribute for CSS to read
+                        marker.setAttribute('data-label', "★" + percentVal + '%'); 
+                        
+                        track.appendChild(marker);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('loading-msg').innerText = "Error loading data.";
+            }
+        }
+
+        // Helper to format money (e.g. 1000 -> $1,000)
+        function formatCurrency(num) {
+            return "$" + Number(num).toLocaleString();
+        }
+
+        // Run on load
+        window.addEventListener('DOMContentLoaded', initTracker);
+    </script>
+</body>
+</html>

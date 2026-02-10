@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donation Tracker</title>
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --primary-color: #4CAF50; /* Green for progress */
+            --milestone-color: #FFC107; /* Gold for stars/markers */
+            --text-color: #ffffff;
+            --bg-overlay: rgba(0, 0, 0, 0.7); /* Dark semi-transparent card */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center; /* Horizontally Center */
+            align-items: center;     /* Vertically Center */
+            background-color: #222;
+        }
+
+        /* Background Image Handling */
+        .background-poster {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('./poster.webp');
+            background-size: cover;
+            background-position: center;
+            z-index: -1;
+            filter: blur(5px); /* Optional: adds a slight blur to focus on content */
+        }
+
+        /* The Card Container */
+        .tracker-card {
+            background-color: var(--bg-overlay);
+            width: 90%;
+            max-width: 400px; /* Mobile first, but caps size on desktop */
+            padding: 30px 20px;
+            border-radius: 20px;
+            text-align: center;
+            color: var(--text-color);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px); /* Modern frosted glass effect */
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Progress Bar Styles */
+        .progress-wrapper {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            margin: 30px 0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%; /* JavaScript will update this */
+            border-radius: 15px;
+            transition: width 1.5s ease-out;
+            box-shadow: 0 0 10px var(--primary-color);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Milestone Markers */
+        .milestone-marker {
+            position: absolute;
+            top: -10px; /* Sits slightly above bar */
+            width: 4px;
+            height: 50px; /* Tall enough to cross the bar */
+            background-color: #fff;
+            z-index: 2;
+            transform: translateX(-50%); /* Center on the percentage line */
+        }
+
+        .milestone-marker::before {
+            /* The Star/Icon on top */
+            content: '★'; 
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--milestone-color);
+            font-size: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Text Stats */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .amount-current {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+        }
+
+        .loading {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Layer -->
+    <div class="background-poster"></div>
+
+    <!-- Main Content -->
+    <div class="tracker-card">
+        <h1>Our Goal</h1>
+        
+        <div id="loading-msg" class="loading">Fetching live data...</div>
+
+        <div class="stats-row">
+            <span>Raised:</span>
+            <span>Target:</span>
+        </div>
+
+        <div class="stats-row">
+            <span id="current-display" class="amount-current">$0</span>
+            <span id="target-display">$0</span>
+        </div>
+
+        <div class="progress-wrapper" id="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
+            <!-- Milestones will be injected here by JS -->
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // PASTE YOUR GOOGLE SCRIPT URL INSIDE THE QUOTES BELOW
+        const DATA_URL = "YOUR_GOOGLE_SCRIPT_URL_HERE";
+
+        async function initTracker() {
+            try {
+                const response = await fetch(DATA_URL);
+                const data = await response.json();
+
+                // 1. Update Text
+                document.getElementById('current-display').innerText = formatCurrency(data.current);
+                document.getElementById('target-display').innerText = formatCurrency(data.target);
+                document.getElementById('loading-msg').style.display = 'none';
+
+                // 2. Calculate Percentage
+                let percentage = (data.current / data.target) * 100;
+                if (percentage > 100) percentage = 100; // Cap at 100%
+                
+                // 3. Update Bar Width
+                document.getElementById('progress-bar').style.width = percentage + "%";
+
+                // 4. Create Milestones
+                const track = document.getElementById('progress-track');
+                
+                data.milestones.forEach(percentVal => {
+                    // Safety check to ensure it fits on bar
+                    if(percentVal >= 0 && percentVal <= 100) {
+                        const marker = document.createElement('div');
+                        marker.classList.add('milestone-marker');
+                        marker.style.left = percentVal + "%";
+                        marker.title = "Milestone at " + percentVal + "%";
+                        track.appendChild(marker);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('loading-msg').innerText = "Error loading data.";
+            }
+        }
+
+        // Helper to format money (e.g. 1000 -> $1,000)
+        function formatCurrency(num) {
+            return "$" + Number(num).toLocaleString();
+        }
+
+        // Run on load
+        window.addEventListener('DOMContentLoaded', initTracker);
+    </script>
+</body>
+</html>
