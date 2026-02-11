@@ -161,13 +161,6 @@
         font-weight: 800;
         text-shadow: 0 0 10px rgba(0, 184, 219, 0.4);
     }
-
-    .last-updated {
-        margin-top: 25px;
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.6); /* Faint text */
-        font-weight: 400;
-    }
 </style>
 </head>
 <body>
@@ -202,8 +195,6 @@
                 <!-- Milestones will be injected here by JS -->
             </div>
 
-            <p id="last-updated" class="last-updated"></p>
-
         </div>
     </div>
 
@@ -216,14 +207,12 @@
             try {
                 const response = await fetch(DATA_URL);
                 const data = await response.json();
-                console.log(data);
 
                 // --- DATA LOADED SUCCESSFULLY ---
 
                 // 1. Update Text Values
                 document.getElementById('current-display').innerText = formatCurrency(data.current);
                 document.getElementById('target-display').innerText = formatCurrency(data.target);
-                document.getElementById('last-updated').innerText = "آخر تحديث: " + data.lastUpdated;
 
                 // 2. Hide Loader & Show Content
                 document.getElementById('loader').style.display = 'none';
